@@ -1,208 +1,354 @@
 <!DOCTYPE html>
 <html>
 <head>
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-/* Flashcard flip  */
-.card{perspective:1200px}
-.inner{transition:.6s;transform-style:preserve-3d}
-.flip{transform:rotateY(180deg)}
-.front,.back{position:absolute;width:100%;height:100%;backface-visibility:hidden}
-.back{transform:rotateY(180deg)}
-</style>
+  <meta charset="UTF-8" />
+  <title>Flashcard App Scaffold</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: white;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .box {
+      max-width: 800px;
+      margin: 0 auto 20px auto;
+      background: #1e1e1e;
+      padding: 20px;
+      border-radius: 12px;
+    }
+
+    input, button, select {
+      padding: 10px;
+      margin: 6px 0;
+      border-radius: 8px;
+      border: none;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    #cardBox {
+      margin-top: 20px;
+      background: white;
+      color: black;
+      min-height: 180px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    #results {
+      margin-top: 10px;
+      color: #bdbdbd;
+    }
+  </style>
 </head>
-<!-- body with gradient background and centered content -->
-<body class="bg-black min-h-screen text-white p-6">
+<body>
 
-<button onclick="window.location.href='https://github.com/Nishanth-S-S/Flashcard_app'">GitHub Page</button>
+  <div class="box">
+    <h1>Flashcard App</h1>
 
-<!-- Create a deck and see all decks -->
-<div id="home" class="max-w-3xl mx-auto">
-<div class="flex gap-2 mb-6">
+    <div class="row">
+      <input id="deckInput" placeholder="Enter deck name">
+      <button onclick="addDeck()">Add Deck</button>
+    </div>
 
-<input id="deckInput" class="bg-white/10 p-3 rounded-xl w-full">
-<button onclick="add()" class="bg-indigo-500 px-5 rounded-xl">+</button>
-</div>
+    <div class="row">
+      <select id="deckSelect"></select>
+      <button onclick="selectDeck()">Open Deck</button>
+    </div>
+  </div>
 
-<!-- JavaScript fills this  with clickable deck cards -->
-<div id="deckList" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
-</div>
+  <div class="box">
+    <h2>Add Card</h2>
 
+    <input id="termInput" placeholder="Term" style="width: 100%;">
+    <input id="defInput" placeholder="Definition" style="width: 100%;">
+    <button onclick="addCard()">Save Card</button>
+  </div>
 
-<!-- Deck page: hidden until the user opens a deck -->
-<div id="page" class="hidden max-w-3xl mx-auto">
+  <div class="box">
+    <h2>Study</h2>
 
-<div class= "flex gap-2 mb-6">
-<button onclick="mode='add';render()" class="bg-green-500 px-3 py-2 rounded-xl">add</button>
-<button onclick=  "mode='study';render()" class="bg-blue-500 px-3 py-2 rounded-xl">study</button>
-<button onclick="backHome()"  class="bg-white/10 px-3 py-2 rounded-xl">back</button>
-</div>
+    <div class="row">
+      <button onclick="previousCard()">Previous</button>
+      <button onclick="flipCard()">Flip</button>
+      <button onclick="nextCard()">Next</button>
+    </div>
 
-<!-- Add card mode: type term and deffiniton -->
-<div id="addBox" class="hidden bg-white/10 p-5 rounded-2xl">
-<input id="term" placeholder="term" class="w-full mb-2 p-3 rounded-lg bg-black/20">
-<input id="def" placeholder="definition" class="w-full mb-3 p-3 rounded-lg bg-black/20">
-<button onclick="saveCard()" class="bg-green-500 px-4 py-2 rounded-lg w-full">add</button>
-</div>
+    <div id="cardBox">No card selected yet</div>
+  </div>
 
-<!-- Study mode: click the card to flip, use buttons to move through cards -->
-<div id="studyBox" class="hidden flex flex-col items-center">
+  <div class="box">
+    <h2>Search</h2>
 
-<div class="card w-full h-64" onclick="flipCard()">
-<div id="innerCard" class="inner w-full h-full relative">
-<div class="front bg-white text-black flex items-center justify-center rounded-2xl text-xl font-semibold"></div>
-<div class="back bg-gray-200 text-black flex items-center justify-center rounded-2xl text-xl font-semibold"></div>
-</div>
-</div>
+    <input id="searchInput" placeholder="Search cards" style="width: 100%;" oninput="updateMatchDisplay()">
+    <div id="results">Matching cards: 0</div>
+  </div>
 
-<div class="flex gap-3 mt-4 w-full">
-<button onclick="prevCard()" class="bg-white/10 px-4 py-2 rounded-xl w-1/2">back</button>
-<button onclick="nextCard()" class="bg-white/10 px-4 py-2 rounded-xl w-1/2">next</button>
-</div>
+  <script>
+    /*
+      DATA SETUP
+      You can keep all cards in one list.
+      Each card is an object with:
+      - deck
+      - term
+      - definition
+    */
 
-</div>
+    let decks = [];
+    let cards = [];
 
-</div>
+    let currentDeck = "";
+    let currentIndex = 0;
+    let showingFront = true;
 
+    function addDeck() {
+      let name = document.getElementById("deckInput").value.trim();
 
-<script>
+      // 1. Check if the deck name is blank
+      if (name === "") {
+        return;
+      }
 
-// Main app data
-let decks = {}
-let currentDeck = null
-let index = 0
-let mode = 'add'
+      // 2. Check if the deck already exists
+      if (decks.includes(name)) {
+        return;
+      }
 
+      // 3. If valid, add it to decks
+      decks.push(name);
 
-// Make a new deck
-function add(){
- let name = deckInput.value
- if(!name) return
+      // 4. Clear the input
+      document.getElementById("deckInput").value = "";
 
- if(!decks[name]) decks[name] = []
- draw()
-}
+      // 5. Call drawDeckOptions()
+      drawDeckOptions();
+    }
 
+    function drawDeckOptions() {
+      let select = document.getElementById("deckSelect");
+      select.innerHTML = "";
 
-// Show all decks on the home page
-function draw(){
- let box = document.getElementById("deckList")
- box.innerHTML=""
+      // Loop through decks
+      // Create an <option> for each deck
+      // Add each option to the select menu
+      for (let i = 0; i < decks.length; i++) {
+        let option = document.createElement("option");
+        option.value = decks[i];
+        option.textContent = decks[i];
+        select.appendChild(option);
+      }
+    }
 
- for(let d in decks){
+    function selectDeck() {
+      currentDeck = document.getElementById("deckSelect").value;
+      currentIndex = 0;
+      showingFront = true;
 
-  let el = document.createElement("div")
-  el.className="bg-white/10 p-6 rounded-2xl cursor-pointer text-center"
+      showCurrentCard();
+      updateMatchDisplay();
+    }
 
-  el.innerText = d
+    function addCard() {
+      let term = document.getElementById("termInput").value.trim();
+      let definition = document.getElementById("defInput").value.trim();
 
-  el.onclick = function(){
-   openDeck(d)
-  }
+      // 1. Make sure a deck is selected
+      if (currentDeck === "") {
+        return;
+      }
 
-  box.appendChild(el)
- }
-}
+      // 2. Make sure term and definition are not blank
+      if (term === "" || definition === "") {
+        return;
+      }
 
+      // 3. Add a new card object to cards
+      cards.push({
+        deck: currentDeck,
+        term: term,
+        definition: definition
+      });
 
-// Open the deck page
-function openDeck(name){
- currentDeck = name
- index = 0
+      // 4. Clear inputs
+      document.getElementById("termInput").value = "";
+      document.getElementById("defInput").value = "";
 
- home.classList.add("hidden")
- page.classList.remove("hidden")
+      // 5. Update screen
+      currentIndex = getCardsInCurrentDeck().length - 1;
+      showingFront = true;
+      showCurrentCard();
+      updateMatchDisplay();
+    }
 
- render()
-}
+    function getCardsInCurrentDeck() {
+      let deckCards = [];
 
+      // Loop through cards
+      // If card.deck matches currentDeck, add that card to deckCards
+      for (let i = 0; i < cards.length; i++) {
+        if (cards[i].deck === currentDeck) {
+          deckCards.push(cards[i]);
+        }
+      }
 
-// Go back to home
-function backHome(){
- page.classList.add("hidden")
- home.classList.remove("hidden")
-}
+      return deckCards;
+    }
 
+    function showCurrentCard() {
+      let deckCards = getCardsInCurrentDeck();
+      let cardBox = document.getElementById("cardBox");
 
-// Switch between add and study
-function render(){
+      if (currentDeck === "") {
+        cardBox.innerText = "Select a deck first";
+        return;
+      }
 
- addBox.classList.add("hidden")
- studyBox.classList.add("hidden")
+      if (deckCards.length === 0) {
+        cardBox.innerText = "No cards in this deck";
+        return;
+      }
 
- if(mode=="add"){
-  addBox.classList.remove("hidden")
- }
+      let currentCard = deckCards[currentIndex];
 
- if(mode=="study"){
-  studyBox.classList.remove("hidden")
-  showCard()
- }
-}
+      if (showingFront) {
+        // show the term
+        cardBox.innerText = currentCard.term;
+      } else {
+        // show the definition
+        cardBox.innerText = currentCard.definition;
+      }
+    }
 
+    function flipCard() {
+      let deckCards = getCardsInCurrentDeck();
 
-// Add a card to the deck
-function saveCard(){
+      if (deckCards.length === 0) {
+        return;
+      }
 
- if(!term.value || !def.value) return
+      // Switch showingFront from true to false or false to true
+      // Then call showCurrentCard()
+      showingFront = !showingFront;
+      showCurrentCard();
+    }
 
- decks[currentDeck].push({
-  q: term.value,
-  a: def.value
- })
+    function nextCard() {
+      let deckCards = getCardsInCurrentDeck();
 
- term.value=""
- def.value=""
-}
+      if (deckCards.length === 0) {
+        return;
+      }
 
+      // 1. Increase currentIndex by 1
+      currentIndex++;
 
-// Show the current card
-function showCard(){
+      // 2. If currentIndex goes past the end, wrap to 0
+      if (currentIndex >= deckCards.length) {
+        currentIndex = 0;
+      }
 
- if(!decks[currentDeck]) return
- if(!decks[currentDeck][index]) return
+      // 3. Set showingFront to true
+      showingFront = true;
 
- let card = decks[currentDeck][index]
+      // 4. Show the card
+      showCurrentCard();
+    }
 
- document.querySelector("#innerCard .front").innerText = card.q
- document.querySelector("#innerCard .back").innerText = card.a
-}
+    function previousCard() {
+      let deckCards = getCardsInCurrentDeck();
 
+      if (deckCards.length === 0) {
+        return;
+      }
 
-// Flip the card
-function flipCard(){
- innerCard.classList.toggle("flip")
-}
+      // 1. Decrease currentIndex by 1
+      currentIndex--;
 
+      // 2. If currentIndex goes below 0, wrap to last card
+      if (currentIndex < 0) {
+        currentIndex = deckCards.length - 1;
+      }
 
-// Go to the next card
-function nextCard(){
+      // 3. Set showingFront to true
+      showingFront = true;
 
- index++
+      // 4. Show the card
+      showCurrentCard();
+    }
 
- if(index >= decks[currentDeck].length){
-  index = 0
- }
+    /*
+      IMPORTANT PROCEDURE
+      This is the one you should make strong.
 
- innerCard.classList.remove("flip")
- showCard()
-}
+      It should:
+      - take a parameter
+      - use the list of cards
+      - use iteration
+      - use selection
+      - return a result
+    */
+    function countMatches(searchText) {
+      let matches = 0;
+      let deckCards = getCardsInCurrentDeck();
+      let loweredSearch = searchText.toLowerCase();
 
+      // Loop through deckCards
+      // For each card:
+      //   get the lowercase term
+      //   get the lowercase definition
+      //
+      // If:
+      //   loweredSearch is empty
+      //   OR term includes loweredSearch
+      //   OR definition includes loweredSearch
+      //
+      // then increase matches
+      for (let i = 0; i < deckCards.length; i++) {
+        let loweredTerm = deckCards[i].term.toLowerCase();
+        let loweredDefinition = deckCards[i].definition.toLowerCase();
 
-// Go to the previous card
-function prevCard(){
+        if (
+          loweredSearch === "" ||
+          loweredTerm.includes(loweredSearch) ||
+          loweredDefinition.includes(loweredSearch)
+        ) {
+          matches++;
+        }
+      }
 
- index--
+      return matches;
+    }
 
- if(index < 0){
-  index = decks[currentDeck].length - 1
- }
+    function updateMatchDisplay() {
+      let text = document.getElementById("searchInput").value;
+      let result = countMatches(text);
 
- innerCard.classList.remove("flip")
- showCard()
-}
+      document.getElementById("results").innerText =
+        "Matching cards: " + result;
+    }
 
-</script>
-
+    // Start the app
+    drawDeckOptions();
+  </script>
 </body>
 </html>
